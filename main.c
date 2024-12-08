@@ -27,7 +27,7 @@ MPI_Datatype create_message_struct() {
 int main(int argc, char *argv[]) {
 
   MPI_Status status;
-  MPI_Comm intercommunicator, parent_communicator;
+  MPI_Comm intercommunicator;
   int errcodes[NUM_SPAWNS];
 
   MPI_Init(&argc, &argv);
@@ -36,18 +36,22 @@ int main(int argc, char *argv[]) {
 
   MPI_Datatype message_struct_type = create_message_struct();
 
-  MPI_Comm_spawn("acceptor", MPI_ARGV_NULL, 1, MPI_INFO_NULL,
-                 root, MPI_COMM_SELF, &intercommunicator, errcodes);
+  char *command_array[2] = {"acceptor", "proposer"};
+  char **argv_array[2] = {MPI_ARGV_NULL, MPI_ARGV_NULL};
+  const int max_procs[2] = {1, 1};
+  MPI_Info infos[2] = {MPI_INFO_NULL, MPI_INFO_NULL};
 
-  MPI_Comm_spawn("proposer", MPI_ARGV_NULL, 1, MPI_INFO_NULL,
-                 root, MPI_COMM_SELF, &intercommunicator, errcodes);          
+  MPI_Comm_spawn_multiple(2, command_array, argv_array, max_procs, infos, 0,
+                          MPI_COMM_WORLD, &intercommunicator, errcodes);
 
-  printf("uai");
+  printf("Processes spawned! Press ENTER to Finalize.\n");
 
+  getchar();
+
+  MPI_Abort(MPI_COMM_WORLD, 0);
   MPI_Type_free(&message_struct_type);
   MPI_Finalize();
-
-  printf("Timestamp: %d\n", (int)time(NULL));
+  exit(0);
 
   return 0;
 }

@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <time.h>
 
-#define NUM_SPAWNS 5
+#define NUM_SPAWNS 1
 #define NUM_ACCEPTORS
 
 MPI_Datatype create_message_struct() {
@@ -88,16 +88,13 @@ int main(int argc, char *argv[]) {
   MPI_Status status;
   MPI_Request request;
   MPI_Comm intercommunicator, parent_communicator;
+  MPI_Init(&argc, &argv);
   int errcodes[NUM_SPAWNS];
   int test_flag;
-  MPI_Init(&argc, &argv);
   int root = 0;
 
   MPI_Datatype message_struct_type = create_message_struct();
   Message *receive_buffer = (Message *)malloc(sizeof(Message));
-
-  MPI_Irecv(receive_buffer, sizeof(Message), message_struct_type,
-            MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &request);
 
   bool consensus = false;
   int proposed_value; // proposed value
@@ -117,11 +114,15 @@ int main(int argc, char *argv[]) {
   send.promised_id = proposal_id;
   send.accepted_id = -1;
   
-  printf("Proposer: Sending PREPARE for all Acceptors");
+  printf("Proposer: Sending PREPARE for all Acceptors\n");
   int n_processors;
   MPI_Comm_size(MPI_COMM_WORLD, &n_processors);
   for (int i = 0; i < n_processors; i++)
     MPI_Send(&send, 1, message_struct_type, i, TO_ACCEPTOR, MPI_COMM_WORLD);
+
+  printf("Proposer: Receiving\n");
+  MPI_Irecv(receive_buffer, sizeof(Message), message_struct_type,
+            MPI_ANY_SOURCE, FROM_ACCEPTOR, MPI_COMM_WORLD, &request);
 
   while (!consensus) {
     // the state of the proposer
@@ -130,18 +131,18 @@ int main(int argc, char *argv[]) {
     if (test_flag) {
       switch (receive_buffer->type) {
       case PROMISE:
-        printf("Proposer: Received PROMISE from Acceptor %d", status.MPI_SOURCE);
+        printf("Proposer: Received PROMISE from Acceptor %d\n", status.MPI_SOURCE);
         on_promise(*receive_buffer, message_struct_type, status.MPI_SOURCE,
                    proposal_id, proposed_value, &promises, &data,
                    &num_promises);
         break;
       case ACCEPT:
-        printf("Proposer: Received ACCEPT from Acceptor %d", status.MPI_SOURCE);
+        printf("Proposer: Received ACCEPT from Acceptor %d\n", status.MPI_SOURCE);
         on_accept(*receive_buffer, message_struct_type, status.MPI_SOURCE,
                   proposal_id, proposed_value, &num_promises);
         break;
       case CONSENSUS:
-        printf("Proposer: Consensus Reached");
+        printf("Proposer: Consensus Reached\n");
         consensus = true;
         break;
       }

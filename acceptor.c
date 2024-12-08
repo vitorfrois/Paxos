@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define NUM_SPAWNS 5
+#define NUM_SPAWNS 1
 
 MPI_Datatype create_message_struct() {
   const int n_items = 4;
@@ -63,13 +63,14 @@ int main(int argc, char *argv[]) {
   MPI_Request request;
   MPI_Comm intercommunicator, parent_communicator;
   MPI_Init(&argc, &argv);
-  int test_flag;
   int errcodes[NUM_SPAWNS];
+  int test_flag;
   int root = 0;
 
   MPI_Datatype message_struct_type = create_message_struct();
   Message *receive_buffer = (Message *)malloc(sizeof(Message));
 
+  printf("Acceptor: Receiving\n");
   MPI_Irecv(receive_buffer, sizeof(Message), message_struct_type,
             MPI_ANY_SOURCE, FROM_PROPOSER, MPI_COMM_WORLD, &request);
 

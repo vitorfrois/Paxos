@@ -1,12 +1,10 @@
-#include <mpi.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include "paxos.h"
+#include <mpi.h>
 #include <stdbool.h>
 
 #define NUM_SPAWNS 5
 
-MPI_Datatype create_message_struct(){
+MPI_Datatype create_message_struct() {
   const int n_items = 3;
   int blocklengths[3] = {1, 1, 1};
   MPI_Datatype types[3] = {MPI_INT, MPI_INT, MPI_INT};
@@ -23,10 +21,32 @@ MPI_Datatype create_message_struct(){
   return message_struct_type;
 }
 
-void on_prepare(Message received, int *promised_num, ){
-  if (*promised_num < received.id){
-    *promised_num = received.id;
-    
+void on_prepare(Message received, MPI_Datatype message_struct, int sender,
+                int *promised_id, int *accepted_data) {
+  if (*promised_id < received.id) {
+    *promised_id = received.id;
+    Message send;
+    send.type = PROMISE;
+    send.data = *accepted_data;
+    send.id = *promised_id;
+    const int dst = sender;
+    MPI_Send(&send, 1, message_struct, dst, 0, MPI_COMM_WORLD);
+  }
+}
+
+void on_accept_request(Message received, MPI_Datatype message_struct, int sender,
+               int *promised_id, int *accepted_id, int *accepted_data) {
+  if (*promised_id <= received.id) {
+    *promised_id = received.id;
+    *accepted_id = received.id;
+    *accepted_data = received.data;
+    Message send;
+    send.type = ACCEPT;
+    send.data = *accepted_data;
+    send.id = *promised_id;
+    const int dst = sender;
+    // Reply the sender
+    MPI_Send(&send, 1, message_struct, dst, 0, MPI_COMM_WORLD);
   }
 
 }
@@ -41,40 +61,14 @@ int main(int argc, char *argv[]) {
   int root = 0;
 
   MPI_Datatype message_struct_type = create_message_struct();
-  
+
   bool consensus = false;
   while (!consensus) {
-    int accepted_num;  // the propsoal number of the value accepted by the acceptor
-    int promised_num; // the highest proposal number the acceptor has received
-    int accepted_value; // the value accepted by the acceptor 
-
-    /* 
-    This function is called when the acceptor receives a prepare message from one of the proposers.
-    */
-    on prepare (n, sender) {
-        if (promised_num < n) {
-            promised_num = n; 
-            Persist state on disk;
-            Send <Promise, n, promise(accepted_num, accepted_value)> to sender; 
-        } else {
-            Send <Nack, n> to sender;
-        }
-    }
-
-    /* 
-    This function is called when the acceptor receives an accept message from one of the proposers.
-    */
-    on accept (n, v, sender) {
-        if (promised_num <= n){
-            promised_num = n; 
-            accepted_num = n; 
-            accepted_value = v; 
-            Persist state on disk;
-            Send <Accepted, n> to sender; 
-        }else {
-            Send <Nack, n> to sender;
-        }
-    }
+    int accepted_id;   // the propsoal number of the value accepted by the acceptor
+    int promised_id;   // the highest proposal number the acceptor has received
+    int accepted_data; // the value accepted by the acceptor
+    
+    // Wait for messages
   }
 
   MPI_Type_free(&message_struct_type);

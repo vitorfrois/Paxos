@@ -36,8 +36,6 @@ int main(int argc, char *argv[]) {
 
   MPI_Datatype message_struct_type = create_message_struct();
 
-
-  
   MPI_Comm_spawn("acceptor", MPI_ARGV_NULL, NUM_SPAWNS, MPI_INFO_NULL,
                  root, MPI_COMM_WORLD, &intercommunicator, errcodes);
 
